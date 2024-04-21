@@ -1,0 +1,3 @@
+[submodule "submodules/rymscraper"]
+	path = submodules/rymscraper
+	url = git@github.com:dbeley/rymscraper.git
