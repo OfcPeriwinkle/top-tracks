@@ -1,32 +1,52 @@
 import dotenv
 import spotipy
 
+from typing import List, Dict
 from rymscraper import rymscraper, RymUrl
-from spotipy.oauth2 import SpotifyClientCredentials
+from spotipy.oauth2 import SpotifyOAuth
 
-dotenv.load_dotenv()
+YEAR = 1968
+
+
+def get_top_tracks(year: int, pages: int = 1) -> List[Dict]:
+    url = RymUrl.RymUrl(year=year, kind="single", language='en')
+    RymNetwork = rymscraper.RymNetwork()
+    list_rows = RymNetwork.get_chart_infos(url, max_page=pages)
+
+    return list_rows
 
 
 def main():
-    spotify = spotipy.Spotify(auth_manager=SpotifyClientCredentials())
+    scope = "user-library-read,playlist-modify-private"
+    sp = spotipy.Spotify(auth_manager=SpotifyOAuth(scope=scope))
 
-    url = RymUrl.RymUrl(year=1968, kind="single", language='en')
-    RymNetwork = rymscraper.RymNetwork()
-    list_rows = RymNetwork.get_chart_infos(url, max_page=1)
+    top_tracks = get_top_tracks(YEAR)
+    spotify_uris = []
 
-    for row in list_rows:
-        songs = row['Album'].split(' / ')
-        print(row['Artist'], songs, row['Genres'], row['Date'])
+    for track in top_tracks:
+        songs = track['Album'].split(' / ')
 
         for song in songs:
-            res = spotify.search(q=f'artist:{row["Artist"]} track:{song}', type='track')
+            res = sp.search(q=f'artist:{track["Artist"]} track:{song}', type='track')
 
             try:
-                print('\t', res['tracks']['items'][0]['name'], res['tracks']
-                      ['items'][0]['external_urls']['spotify'])
+                spotify_uris.append(res['tracks']['items'][0]['uri'])
             except IndexError:
-                print('\t', 'No results found')
+                pass
+
+    user = sp.current_user()
+    res = sp.user_playlist_create(
+        user=user['id'],
+        name=f'Top Tracks of {YEAR}',
+        public=False,
+        description=f'The top singles of {YEAR} according to Rate Your Music')
+
+    sp.user_playlist_add_tracks(
+        user=user['id'],
+        playlist_id=res['id'],
+        tracks=spotify_uris)
 
 
 if __name__ == '__main__':
+    dotenv.load_dotenv()
     main()
