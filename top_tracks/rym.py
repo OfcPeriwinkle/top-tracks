@@ -1,7 +1,7 @@
 import argparse
 
 import chunk
-from typing import List, Dict
+from typing import List, Dict, final
 
 import dotenv
 import spotipy
@@ -21,8 +21,14 @@ def get_args():
 
 def get_top_tracks(year: int, pages: int = 1) -> List[Dict]:
     url = RymUrl.RymUrl(year=year, kind="single", language='en')
-    RymNetwork = rymscraper.RymNetwork()
-    list_rows = RymNetwork.get_chart_infos(url, max_page=pages)
+    network = rymscraper.RymNetwork()
+
+    try:
+        list_rows = network.get_chart_infos(url, max_page=pages)
+    except Exception as e:
+        print(f'Error getting top tracks: {e}')
+    finally:
+        network.browser.quit()
 
     return list_rows
 
