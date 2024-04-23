@@ -4,6 +4,7 @@ from typing import List, Dict
 
 import dotenv
 import spotipy
+import tqdm
 
 from rymscraper import rymscraper, RymUrl
 from spotipy.oauth2 import SpotifyOAuth
@@ -30,17 +31,18 @@ def main():
     scope = "user-library-read,playlist-modify-private"
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(scope=scope))
 
+    print(f'Getting top tracks for {args.year} from RYM...')
     top_tracks = get_top_tracks(args.year, args.pages)
-    spotify_uris = []
+    spotify_uris = set()
 
-    for track in top_tracks:
+    for track in tqdm.tqdm(top_tracks, desc='Searching for top tracks on Spotify'):
         songs = track['Album'].split(' / ')
 
         for song in songs:
             res = sp.search(q=f'artist:{track["Artist"]} track:{song}', type='track')
 
             try:
-                spotify_uris.append(res['tracks']['items'][0]['uri'])
+                spotify_uris.add(res['tracks']['items'][0]['uri'])
             except IndexError:
                 pass
 
@@ -54,7 +56,9 @@ def main():
     sp.user_playlist_add_tracks(
         user=user['id'],
         playlist_id=res['id'],
-        tracks=spotify_uris)
+        tracks=list(spotify_uris))
+
+    print(f'Playlist created: {res["external_urls"]["spotify"]}')
 
 
 if __name__ == '__main__':
