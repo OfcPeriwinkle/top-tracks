@@ -1,7 +1,6 @@
 import argparse
 
-import chunk
-from typing import List, Dict, final
+from typing import List, Dict
 
 import dotenv
 import spotipy
