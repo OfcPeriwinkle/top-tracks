@@ -1,5 +1,5 @@
 # Top-Tracks
-This is a simple CLI tool that scrapes the top singles for a given year from (Rate Your Music)[https://rateyourmusic.com/] and create a Spotify playlist with them.
+This is a simple CLI tool that scrapes the top singles for a given year from [Rate Your Music](https://rateyourmusic.com/) and create a Spotify playlist with them.
 
 ## Installation
 First things first, clone this repository. Then create a virtual environment and install the submodule dependency and the package itself.
@@ -20,7 +20,7 @@ You will need to set the following environment variables:
 - `SPOTIPY_CLIENT_SECRET`: Your Spotify client secret.
 - `SPOTIPY_REDIRECT_URI`: Your Spotify redirect URI.
 
-More information on these variables can be found in the (Spotipy documentation)[https://spotipy.readthedocs.io/].
+More information on these variables can be found in the [Spotipy documentation](https://spotipy.readthedocs.io/).
 
 ## Usage
 Since this is just a CLI tool right now, you can run `top-tracks -h` to see the full list of arguments.
