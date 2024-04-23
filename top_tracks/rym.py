@@ -1,4 +1,5 @@
 import argparse
+import logging
 
 from typing import List, Dict
 
@@ -9,23 +10,33 @@ import tqdm
 from rymscraper import rymscraper, RymUrl
 from spotipy.oauth2 import SpotifyOAuth
 
+logging.basicConfig(level=logging.INFO)
+
 
 def get_args():
     parser = argparse.ArgumentParser(
         description='Create a Spotify playlist based on the top tracks of a given year')
     parser.add_argument('year', type=int, help='The year to get the top tracks from')
     parser.add_argument('--pages', type=int, default=1, help='The number of pages to scrape')
+    parser.add_argument(
+        '--genres',
+        nargs='+',
+        default=None,
+        help='The genres to filter the top tracks by; separate multiple genres with spaces; '
+        'if a genre has a space use a hyphen (e.g. New Wave -> new-wave)')
     return parser.parse_args()
 
 
-def get_top_tracks(year: int, pages: int = 1) -> List[Dict]:
-    url = RymUrl.RymUrl(year=year, kind="single", language='en')
+def get_top_tracks(year: int, genres: List[str] = None, pages: int = 1) -> List[Dict]:
+    url = RymUrl.RymUrl(year=year, kind="single", language='en',
+                        genres=','.join(genres) if genres else None)
     network = rymscraper.RymNetwork()
 
     try:
+        logging.info(f'Getting top tracks from {url}')
         list_rows = network.get_chart_infos(url, max_page=pages)
     except Exception as e:
-        print(f'Error getting top tracks: {e}')
+        logging.error(f'Error getting top tracks: {e}')
     finally:
         network.browser.quit()
 
@@ -37,8 +48,8 @@ def main():
     scope = "user-library-read,playlist-modify-private"
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(scope=scope))
 
-    print(f'Getting top tracks for {args.year} from RYM...')
-    top_tracks = get_top_tracks(args.year, args.pages)
+    logging.info(f'Getting top tracks for {args.year} from RYM...')
+    top_tracks = get_top_tracks(args.year, args.genres, args.pages)
     spotify_uris = set()
 
     for track in tqdm.tqdm(top_tracks, desc='Searching for top tracks on Spotify'):
@@ -68,7 +79,7 @@ def main():
             playlist_id=res['id'],
             tracks=chunk)
 
-    print(f'Playlist created: {res["external_urls"]["spotify"]}')
+    logging.info(f'Playlist created: {res["external_urls"]["spotify"]}')
 
 
 if __name__ == '__main__':
