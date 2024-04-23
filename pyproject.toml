@@ -3,9 +3,10 @@ name = "top-tracks"
 version = "1.0.0"
 description = "Get the top tracks from a year as a collection of Spotify tracks"
 dependencies = [
-    "spotipy",
+    "python-dotenv",
     "rymscraper",
-    "python-dotenv"
+    "spotipy",
+    "tqdm"
 ]
 
 [project.scripts]
