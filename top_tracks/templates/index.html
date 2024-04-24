@@ -1,0 +1,20 @@
+<h2>
+    Hi {{ spotify.me()["display_name"] }}
+    <small><a href="/sign_out">[sign out]<a/></small>
+</h2>
+<a href="/rym/charts/top/album/2006/g:ambient/1">make a playlist</a> | 
+<a href="/currently_playing">currently playing</a> | 
+<a href="/current_user">me</a>
+
+<h3>Top Tracks</h3>
+<form method="post" action="/rym/charts/top">
+    <label for="years">Years</label>
+    <input type="text" name="years" id="years" value="all-time" required>
+    <label for="genres">Genres</label>
+    <input type="text" name="genres" id="genres" value="pop-punk">
+    <label for="kinds">Kinds</label>
+    <input type="text" name="kinds" id="kinds" value="album" required>
+    <label for="pages">Pages</label>
+    <input type="number" name="pages" id="pages" value=1 required max="5" min="1">
+    <input type="submit" value="Submit">
+</form>
