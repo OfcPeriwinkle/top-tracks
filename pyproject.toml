@@ -3,6 +3,7 @@ name = "top-tracks"
 version = "1.0.0"
 description = "Turn a RYM chart into a Spotify playlist"
 dependencies = [
+    "flask",
     "jaro-winkler",
     "python-dotenv",
     "rymscraper",
