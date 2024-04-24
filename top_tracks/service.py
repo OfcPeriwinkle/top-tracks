@@ -3,7 +3,7 @@ from typing import List
 
 import dotenv
 import spotipy
-from flask import Flask, session, request, redirect
+from flask import Flask, session, request, redirect, render_template
 from flask_session import Session
 
 import rym
@@ -21,17 +21,22 @@ def parse_kinds(kinds: str) -> str:
     if len(kinds) > 1:
         raise NotImplementedError('Multiple kinds are not supported')
 
-    if kinds[0] not in ('album', 'track'):
+    if kinds[0] not in ('album', 'single'):
         raise NotImplementedError(f'Kind: {kinds[0]} is not supported')
 
     return kinds[0]
 
 
 def parse_genres(genres: str) -> List[str]:
+    if len(genres) == 0:
+        return []
+
     if genres[:2] == 'g:':
         genres = genres[2:]
 
-    return genres.split(',')
+    raw_genres = genres.split(',')
+
+    return [genre.strip() for genre in raw_genres]
 
 
 def verify_credentials():
@@ -60,16 +65,11 @@ def index():
     if not auth_manager.validate_token(cache_handler.get_cached_token()):
         # Step 1. Display sign in link when no token
         auth_url = auth_manager.get_authorize_url()
-        return f'<h2><a href="{auth_url}">Sign in</a></h2>'
+        return render_template('base.html', auth_url=auth_url)
 
     # Step 3. Signed in, display data
     spotify = spotipy.Spotify(auth_manager=auth_manager)
-    return f'<h2>Hi {spotify.me()["display_name"]}, ' \
-           f'<small><a href="/sign_out">[sign out]<a/></small></h2>' \
-           f'<a href="/rym/charts/top/album/2006/g:ambient/1">make a playlist</a> | ' \
-           f'<a href="/currently_playing">currently playing</a> | ' \
-        f'<a href="/current_user">me</a>' \
-
+    return render_template('index.html', spotify=spotify)
 
 
 @app.route('/sign_out')
@@ -78,10 +78,12 @@ def sign_out():
     return redirect('/')
 
 
-@app.route('/rym/charts/top/<kinds>/<years>/<genres>/<int:pages>', methods=['GET'])
-def rym_chart(kinds: str, years: str, genres: str, pages: int):
-    kinds = parse_kinds(kinds)
-    genres = parse_genres(genres)
+@app.route('/rym/charts/top', methods=['POST'])
+def rym_chart():
+    kinds = parse_kinds(request.form.get('kinds', 'single'))
+    genres = parse_genres(request.form.get('genres', ''))
+    years = request.form.get('years', 'all-time')
+    pages = int(request.form.get('pages', 1))
 
     auth_manager = verify_credentials()
 
@@ -103,7 +105,7 @@ def rym_chart(kinds: str, years: str, genres: str, pages: int):
     playlist_name, playlist_description = rym.create_playlist_name_and_description(years, genres)
     url = rym.create_spotify_playlist(sp, spotify_uris, playlist_name, playlist_description)
 
-    return {'playlist': url}
+    return redirect(url)
 
 
 if __name__ == '__main__':
