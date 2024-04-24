@@ -1,7 +1,7 @@
 [project]
 name = "top-tracks"
 version = "1.0.0"
-description = "Get the top tracks from a year as a collection of Spotify tracks"
+description = "Turn a RYM chart into a Spotify playlist"
 dependencies = [
     "jaro-winkler",
     "python-dotenv",
@@ -14,12 +14,21 @@ dependencies = [
 top-tracks = "top_tracks.rym:main"
 
 [build-system]
-requires = ["flit_core<4"]
-build-backend = "flit_core.buildapi"
+requires = [
+    "setuptools>=42",
+    "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = [
+    "top_tracks",
+    "rymscraper"
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true
-source = ["top-tracks"]
+source = ["top_tracks"]
