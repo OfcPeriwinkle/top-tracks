@@ -29,6 +29,7 @@ def get_args():
     parser.add_argument(
         '--kind',
         default='single',
+        choices=['single', 'album'],
         help='The type of release to filter the top tracks by; defaults to single')
     return parser.parse_args()
 
