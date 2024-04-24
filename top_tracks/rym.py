@@ -4,6 +4,7 @@ import logging
 from typing import List, Dict
 
 import dotenv
+import jaro
 import spotipy
 import tqdm
 
@@ -15,8 +16,9 @@ logging.basicConfig(level=logging.INFO)
 
 def get_args():
     parser = argparse.ArgumentParser(
-        description='Create a Spotify playlist based on the top tracks of a given year')
-    parser.add_argument('year', type=int, help='The year to get the top tracks from')
+        description='Create a Spotify playlist based on the top tracks of a given year (or all time)')
+    parser.add_argument('--years', type=str, default='all-time',
+                        help='The year to get the top tracks from')
     parser.add_argument('--pages', type=int, default=1, help='The number of pages to scrape')
     parser.add_argument(
         '--genres',
@@ -24,11 +26,16 @@ def get_args():
         default=None,
         help='The genres to filter the top tracks by; separate multiple genres with spaces; '
         'if a genre has a space use a hyphen (e.g. New Wave -> new-wave)')
+    parser.add_argument(
+        '--kind',
+        default='single',
+        help='The type of release to filter the top tracks by; defaults to single')
     return parser.parse_args()
 
 
-def get_top_tracks(year: int, genres: List[str] = None, pages: int = 1) -> List[Dict]:
-    url = RymUrl.RymUrl(year=year, kind="single", language='en',
+def get_chart_entries(years: str = 'all-time', genres: List[str] = None, kind: str = 'single',
+                      pages: int = 1) -> List[Dict]:
+    url = RymUrl.RymUrl(year=years, kind=kind, language='en',
                         genres=','.join(genres) if genres else None)
     network = rymscraper.RymNetwork()
 
@@ -43,41 +50,64 @@ def get_top_tracks(year: int, genres: List[str] = None, pages: int = 1) -> List[
     return list_rows
 
 
-def main():
-    args = get_args()
-    scope = "user-library-read,playlist-modify-private"
-    sp = spotipy.Spotify(auth_manager=SpotifyOAuth(scope=scope))
+def unique_tracks(tracks: List[str]) -> List[str]:
+    """
+    Remove duplicates from a list of tracks while preserving the order.
 
-    logging.info(f'Getting top tracks for {args.year} from RYM...')
-    top_tracks = get_top_tracks(args.year, args.genres, args.pages)
+    Taken from https://stackoverflow.com/questions/480214/how-do-i-remove-duplicates-from-a-list-while-preserving-order
+    """
 
-    if not top_tracks:
-        logging.error('No tracks found')
-        return
+    seen = set()
+    return [track for track in tracks if not (track in seen or seen.add(track))]
 
-    spotify_uris = set()
 
-    for track in tqdm.tqdm(top_tracks, desc='Searching for top tracks on Spotify'):
+def search_for_single_uris(sp: spotipy.Spotify, tracks: List[Dict]):
+    spotify_uris = []
+
+    for track in tqdm.tqdm(tracks, desc='Searching for top tracks on Spotify'):
         songs = track['Album'].split(' / ')
 
         for song in songs:
-            res = sp.search(q=f'artist:{track["Artist"]} track:{song}', type='track')
+            # Search for the track on Spotify using fuzzy matching; using the artist and track
+            # filters may cause unexpected results to leak through if RYM and Spotify don't match
+            res = sp.search(q=f'{song} by {track["Artist"]}', type='track')
 
-            try:
-                spotify_uris.add(res['tracks']['items'][0]['uri'])
-            except IndexError:
-                pass
+            for item in res['tracks']['items']:
+                # Names can be inconsistent between RYM and Spotify; use
+                # Jaro-Winkler similarity to see if we have something close enough
+                artist_similarity = jaro.jaro_winkler_metric(
+                    item["artists"][0]["name"], track["Artist"])
+                track_similarity = jaro.jaro_winkler_metric(item["name"], song)
+
+                if artist_similarity > 0.7 and track_similarity > 0.7:
+                    spotify_uris.append(item['uri'])
+                    break
+
+    return unique_tracks(spotify_uris)
+
+
+def create_spotify_playlist(sp: spotipy.Spotify, spotify_uris: set, year: str = 'all-time',
+                            genres: List[str] = None):
+    user = sp.current_user()
 
     display_genres = [genre.replace("-", " ").title()
-                      for genre in args.genres] if args.genres else []
-    genre_description = f'{", ".join(display_genres)}' if args.genres else ''
+                      for genre in genres] if genres else []
+    genre_description = f'{", ".join(display_genres)}' if genres else ''
+    display_year = year if year != 'all-time' else 'All Time'
 
-    user = sp.current_user()
+    # Add 'the' to the beginning of decades
+    if display_year[-1] == 's':
+        display_year = f'the {display_year}'
+
+    display_preposition = 'from' if display_year != 'All Time' else 'of'
+
     res = sp.user_playlist_create(
         user=user['id'],
-        name=f'Top {display_genres[0]} {"& More" if display_genres else ""} Tracks of {args.year}',
+        name=f'Top {f"{display_genres[0]} " if display_genres else "Tracks "}{"& More " if len(display_genres) > 1 else " "}'
+             f'{display_preposition} {display_year}',
         public=False,
-        description=f'The top {genre_description} singles of {args.year} according to Rate Your Music; generated by https://github.com/OfcPeriwinkle/top-tracks')
+        description=f'The top {genre_description.lower()} singles {display_preposition} {display_year.lower()} according to Rate Your Music; '
+                    'generated by https://github.com/OfcPeriwinkle/top-tracks')
 
     spotify_uris = list(spotify_uris)
     chunked_uris = [spotify_uris[i:i + 100] for i in range(0, len(spotify_uris), 100)]
@@ -88,7 +118,60 @@ def main():
             playlist_id=res['id'],
             tracks=chunk)
 
-    logging.info(f'Playlist created: {res["external_urls"]["spotify"]}')
+    return res['external_urls']['spotify']
+
+
+def get_album_tracks(sp: spotipy.Spotify, chart_entries: List[Dict], size_limit: int = 3):
+    track_uris = []
+
+    for entry in tqdm.tqdm(
+            chart_entries,
+            desc='Collecting most popular tracks from top albums on Spotify'):
+        res = sp.search(q=f'{entry["Album"]} by {entry["Artist"]}', type='album')
+        album = None
+
+        for item in res['albums']['items']:
+            artist_similarity = jaro.jaro_winkler_metric(
+                item['artists'][0]['name'], entry['Artist'])
+            album_similarity = jaro.jaro_winkler_metric(item['name'], entry['Album'])
+
+            if artist_similarity > 0.7 and album_similarity > 0.7:
+                album = item['uri']
+                break
+
+        if album is None:
+            continue
+
+        tracks = sp.album_tracks(album)
+        track_details = sp.tracks([track['uri'] for track in tracks['items']])['tracks']
+        track_details.sort(key=lambda x: x['popularity'], reverse=True)
+
+        track_uris.extend([details['uri'] for details in track_details]
+                          [:size_limit if len(track_details) >= size_limit else len(track_details)])
+
+    return unique_tracks(track_uris)
+
+
+def main():
+    args = get_args()
+    scope = "user-library-read,playlist-modify-private"
+    sp = spotipy.Spotify(auth_manager=SpotifyOAuth(scope=scope))
+
+    logging.info(f'Getting top tracks for {args.years} from RYM...')
+    chart_entries = get_chart_entries(args.years, args.genres, args.kind, args.pages)
+
+    if not chart_entries:
+        logging.error('No tracks found')
+        return
+
+    if args.kind == 'album':
+        spotify_uris = get_album_tracks(sp, chart_entries)
+    else:
+        spotify_uris = search_for_single_uris(sp, chart_entries)
+
+    url = create_spotify_playlist(sp, spotify_uris, args.years, args.genres)
+
+    logging.info(f'Playlist created: {url}')
 
 
 if __name__ == '__main__':

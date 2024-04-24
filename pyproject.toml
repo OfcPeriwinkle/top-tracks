@@ -3,6 +3,7 @@ name = "top-tracks"
 version = "1.0.0"
 description = "Get the top tracks from a year as a collection of Spotify tracks"
 dependencies = [
+    "jaro-winkler",
     "python-dotenv",
     "rymscraper",
     "spotipy",
