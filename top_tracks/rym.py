@@ -15,6 +15,10 @@ logging.basicConfig(level=logging.INFO)
 
 
 def get_args():
+    """
+    Get the command line arguments.
+    """
+
     parser = argparse.ArgumentParser(
         description='Create a Spotify playlist based on the top tracks of a given year (or all time)')
     parser.add_argument('--years', type=str, default='all-time',
@@ -36,6 +40,19 @@ def get_args():
 
 def get_chart_entries(years: str = 'all-time', genres: List[str] = None, kind: str = 'single',
                       pages: int = 1) -> List[Dict]:
+    """
+    Get the top tracks from Rate Your Music, filtering for provided year(s), genre(s), and kind.
+
+    Args:
+        years: The year to get the top tracks from; defaults to 'all-time'
+        genres: The genres to filter the top tracks by; defaults to None
+        kind: The type of release to filter the top tracks by; defaults to 'single'
+        pages: The number of pages to scrape; defaults to 1
+
+    Returns:
+        A list of dictionaries containing the top tracks
+    """
+
     url = RymUrl.RymUrl(year=years, kind=kind, language='en',
                         genres=','.join(genres) if genres else None)
     network = rymscraper.RymNetwork()
@@ -56,6 +73,12 @@ def unique_tracks(tracks: List[str]) -> List[str]:
     Remove duplicates from a list of tracks while preserving the order.
 
     Taken from https://stackoverflow.com/questions/480214/how-do-i-remove-duplicates-from-a-list-while-preserving-order
+
+    Args:
+        tracks: A list of track URIs
+
+    Returns:
+        A list of unique track URIs with their order preserved
     """
 
     seen = set()
@@ -63,6 +86,17 @@ def unique_tracks(tracks: List[str]) -> List[str]:
 
 
 def search_for_single_uris(sp: spotipy.Spotify, tracks: List[Dict]):
+    """
+    Search for a list of tracks on Spotify and return the unique URIs.
+
+    Args:
+        sp: The Spotify object
+        tracks: A list of track dictionaries
+
+    Returns:
+        A list of unique track URIs
+    """
+
     spotify_uris = []
 
     for track in tqdm.tqdm(tracks, desc='Searching for top tracks on Spotify'):
@@ -88,6 +122,17 @@ def search_for_single_uris(sp: spotipy.Spotify, tracks: List[Dict]):
 
 
 def create_playlist_name_and_description(year: str, genres: List[str] = None):
+    """
+    Create the name and description for the Spotify playlist.
+
+    Args:
+        year: The year to get the top tracks from
+        genres: The genres to filter the top tracks by; defaults to None
+
+    Returns:
+        A tuple containing the playlist name and description
+    """
+
     display_genres = [genre.replace("-", " ").title()
                       for genre in genres] if genres else []
     genre_description = f'{", ".join(display_genres)}' if genres else ''
@@ -119,6 +164,18 @@ def create_playlist_name_and_description(year: str, genres: List[str] = None):
 
 
 def get_album_tracks(sp: spotipy.Spotify, chart_entries: List[Dict], size_limit: int = 3):
+    """
+    Get the top size_limit most popular tracks from the top albums on Spotify.
+
+    Args:
+        sp: The Spotify object
+        chart_entries: A list of album dictionaries
+        size_limit: The number of tracks to get from each album; defaults to 3
+
+    Returns:
+        A list of unique track URIs
+    """
+
     track_uris = []
 
     for entry in tqdm.tqdm(
@@ -149,11 +206,22 @@ def get_album_tracks(sp: spotipy.Spotify, chart_entries: List[Dict], size_limit:
     return unique_tracks(track_uris)
 
 
-def create_spotify_playlist(sp: spotipy.Spotify, spotify_uris: set, year: str = 'all-time',
-                            genres: List[str] = None):
-    user = sp.current_user()
-    playlist_name, playlist_description = create_playlist_name_and_description(year, genres)
+def create_spotify_playlist(sp: spotipy.Spotify, spotify_uris: set, playlist_name: str,
+                            playlist_description: str):
+    """
+    Create a Spotify playlist with the given URIs.
 
+    Args:
+        sp: The Spotify object
+        spotify_uris: A set of track URIs
+        playlist_name: The name of the playlist
+        playlist_description: The description of the playlist
+
+    Returns:
+        The URL of the created playlist
+    """
+
+    user = sp.current_user()
     res = sp.user_playlist_create(
         user=user['id'],
         name=playlist_name,
@@ -173,6 +241,10 @@ def create_spotify_playlist(sp: spotipy.Spotify, spotify_uris: set, year: str = 
 
 
 def main():
+    """
+    Parse command line args and create a Spotify playlist based on the top tracks from RYM.
+    """
+
     args = get_args()
     scope = "user-library-read,playlist-modify-private"
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(scope=scope))
@@ -189,7 +261,9 @@ def main():
     else:
         spotify_uris = search_for_single_uris(sp, chart_entries)
 
-    url = create_spotify_playlist(sp, spotify_uris, args.years, args.genres)
+    playlist_name, playlist_description = create_playlist_name_and_description(
+        args.years, args.genres)
+    url = create_spotify_playlist(sp, spotify_uris, playlist_name, playlist_description)
 
     logging.info(f'Playlist created: {url}')
 
