@@ -1,7 +1,7 @@
 import argparse
 import logging
 
-from typing import List, Dict
+from typing import Dict, List, Tuple
 
 import dotenv
 import jaro
@@ -38,8 +38,11 @@ def get_args():
     return parser.parse_args()
 
 
-def get_chart_entries(years: str = 'all-time', genres: List[str] = None, kind: str = 'single',
-                      pages: int = 1) -> List[Dict]:
+def get_chart_entries(
+        years: str = 'all-time',
+        genres: List[str] = None,
+        kind: str = 'single',
+        pages: int = 1) -> List[Dict]:
     """
     Get the top tracks from Rate Your Music, filtering for provided year(s), genre(s), and kind.
 
@@ -85,7 +88,7 @@ def unique_tracks(tracks: List[str]) -> List[str]:
     return [track for track in tracks if not (track in seen or seen.add(track))]
 
 
-def search_for_single_uris(sp: spotipy.Spotify, tracks: List[Dict]):
+def search_for_single_uris(sp: spotipy.Spotify, tracks: List[Dict]) -> List[str]:
     """
     Search for a list of tracks on Spotify and return the unique URIs.
 
@@ -121,7 +124,7 @@ def search_for_single_uris(sp: spotipy.Spotify, tracks: List[Dict]):
     return unique_tracks(spotify_uris)
 
 
-def create_playlist_name_and_description(year: str, genres: List[str] = None):
+def create_playlist_name_and_description(year: str, genres: List[str] = None) -> Tuple[str, str]:
     """
     Create the name and description for the Spotify playlist.
 
@@ -163,7 +166,10 @@ def create_playlist_name_and_description(year: str, genres: List[str] = None):
     return ' '.join(playlist_name), ' '.join(playlist_description)
 
 
-def get_album_tracks(sp: spotipy.Spotify, chart_entries: List[Dict], size_limit: int = 3):
+def get_album_tracks(
+        sp: spotipy.Spotify,
+        chart_entries: List[Dict],
+        size_limit: int = 3) -> List[str]:
     """
     Get the top size_limit most popular tracks from the top albums on Spotify.
 
@@ -206,8 +212,11 @@ def get_album_tracks(sp: spotipy.Spotify, chart_entries: List[Dict], size_limit:
     return unique_tracks(track_uris)
 
 
-def create_spotify_playlist(sp: spotipy.Spotify, spotify_uris: set, playlist_name: str,
-                            playlist_description: str):
+def create_spotify_playlist(
+        sp: spotipy.Spotify,
+        spotify_uris: set,
+        playlist_name: str,
+        playlist_description: str) -> str:
     """
     Create a Spotify playlist with the given URIs.
 
