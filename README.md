@@ -1,5 +1,5 @@
 # Top-Tracks
-This is a simple CLI tool that scrapes the top singles for a given year from [Rate Your Music](https://rateyourmusic.com/) and create a Spotify playlist with them.
+This is a simple CLI tool that scrapes the top singles or albums within an optional timeframe from [Rate Your Music](https://rateyourmusic.com/) and creates a Spotify playlist with them.
 
 ## Installation
 First thing's first, clone this repository. Then create a virtual environment and install the submodule dependency and the package itself.
