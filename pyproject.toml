@@ -4,6 +4,7 @@ version = "1.0.0"
 description = "Turn a RYM chart into a Spotify playlist"
 dependencies = [
     "flask",
+    "flask-session",
     "jaro-winkler",
     "python-dotenv",
     "rymscraper",
