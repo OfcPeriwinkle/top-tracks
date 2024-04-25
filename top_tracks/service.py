@@ -1,12 +1,11 @@
 import os
 from typing import List
 
-import dotenv
 import spotipy
 from flask import Flask, session, request, redirect, render_template
 from flask_session import Session
 
-import rym
+import top_tracks.rym as rym
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(64)
@@ -50,7 +49,6 @@ def verify_credentials():
 
 @app.route('/')
 def index():
-
     cache_handler = spotipy.cache_handler.FlaskSessionCacheHandler(session)
     auth_manager = spotipy.oauth2.SpotifyOAuth(
         scope='user-read-currently-playing playlist-modify-private',
@@ -109,5 +107,4 @@ def rym_chart():
 
 
 if __name__ == '__main__':
-    dotenv.load_dotenv()
-    app.run(port=8888, threaded=True)
+    app.run()
