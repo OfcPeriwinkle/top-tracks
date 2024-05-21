@@ -25,7 +25,7 @@ More information on these variables can be found in the [Spotipy documentation](
 ## Usage
 Since this is just a CLI tool right now, you can run `top-tracks -h` to see the full list of arguments.
 
-To get the top tracks of 1968, you can run:
+To get the top tracks of 2020, you can run:
 ```bash
 top-tracks --years 2020 --pages 2
 ```
