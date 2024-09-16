@@ -1,3 +1,5 @@
+#### This project has been archived. RYM has introduced CloudFlare protections that break rymscraper. Hopefully they release a public API at some point 😔
+
 # Top-Tracks
 This is a simple CLI tool that scrapes the top singles or albums within an optional timeframe from [Rate Your Music](https://rateyourmusic.com/) and creates a Spotify playlist with them.
 
